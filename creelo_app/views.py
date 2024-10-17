@@ -26,12 +26,8 @@ class ProductViewSet(viewsets.ModelViewSet):
         # login_user=1
         for product_image in product_images:
             ProductImage.objects.create(product=product,**product_image)
-
-
-
         serializer = self.get_serializer(product)
         print("again reload the product data ")
-        
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):

@@ -30,15 +30,8 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'category', 'description', 'price', 'stock', 'created_at', 'attributes','productimage']
 
     def create(self, validated_data):
-        # Remove and process attributes separately
-        # attributes_data = validated_data.pop('attributes', [])
         product = Product.objects.create(**validated_data)
-        # # Create associated attributes
-        # for attribute_data in attributes_data:
-        #     ProductAttribute.objects.create(product=product, **attribute_data)
-
         return product
-
     def update(self, instance, validated_data):
         # Remove and process attributes separately
         attributes_data = validated_data.pop('attributes', [])
