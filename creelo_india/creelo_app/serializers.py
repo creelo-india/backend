@@ -24,14 +24,14 @@ class ProductAttributeSerializer(serializers.ModelSerializer):
 class ProductSerializer(serializers.ModelSerializer):
     attributes = ProductAttributeSerializer(many=True, required=False)
     productimage=ProductImageSerializer(many=True,required=False)
-
     class Meta:
         model = Product
-        fields = ['id', 'name', 'category', 'description', 'price', 'stock', 'created_at', 'attributes','productimage']
+        fields = ['id', 'name', 'category', 'description', 'price', 'stock','is_featured_product', 'is_top_selling_product','is_new_arrivals','created_at', 'attributes','productimage']
 
     def create(self, validated_data):
         product = Product.objects.create(**validated_data)
         return product
+    
     def update(self, instance, validated_data):
         # Remove and process attributes separately
         attributes_data = validated_data.pop('attributes', [])
