@@ -26,7 +26,7 @@ class ProductSerializer(serializers.ModelSerializer):
     productimage=ProductImageSerializer(many=True,required=False)
     class Meta:
         model = Product
-        fields = ['id', 'name', 'category', 'description', 'price', 'stock','is_featured_product', 'is_top_selling_product','is_new_arrivals','created_at', 'attributes','productimage']
+        fields = ['id', 'name', 'category', 'description', 'price', 'stock','is_featured_product', 'is_top_selling_product','is_new_arrivals','is_instock','rating','reviews','created_at', 'attributes','productimage']
 
     def create(self, validated_data):
         product = Product.objects.create(**validated_data)
