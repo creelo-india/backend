@@ -8,7 +8,8 @@ class CategorySerializer(serializers.ModelSerializer):
         model = Category
         fields = ['id', 'name', 'parent', 'description', 'children','link','created_at']
         read_only_fields = ['children']
+        depth = 1
 
     def get_children(self, obj):
         children = obj.children.all()
-        return CategorySerializer(children, many=True).data
+        return CategorySerializer(children, many=True).data if children.exists() else []
