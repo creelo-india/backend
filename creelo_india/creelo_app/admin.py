@@ -6,3 +6,6 @@ from creelo_app.models import *
 admin.site.register(Product)
 admin.site.register(ProductAttribute)
 admin.site.register(ProductImage)
+
+admin.site.register(Cart)
+admin.site.register(CartItem)

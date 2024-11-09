@@ -120,6 +120,19 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
 }
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=30),  # Set access token expiration to 30 days (1 month)
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=30),  # Set refresh token expiration to 30 days (1 month)
+    # 'ROTATE_REFRESH_TOKENS': False,  # Optional: Set to True to rotate refresh tokens
+    # 'BLACKLIST_AFTER_ROTATION': False,  # Optional: If set to True, the old refresh token is blacklisted after rotation
+    # 'ALGORITHM': 'HS256',  # The algorithm used to encode the JWT (default is HS256)
+    # 'SIGNING_KEY': SECRET_KEY,  # Signing key for the JWT (use the same key as the Django SECRET_KEY)
+    # 'VERIFYING_KEY': None,  # Optional: Public key if you're verifying with RSA, etc.
+    # 'AUDIENCE': None,  # Optional: Set audience if required
+    # 'ISSUER': None,  # Optional: Set issuer if required
+}
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
