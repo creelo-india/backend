@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import Product,ProductAttribute,ProductImage
 from master_config.models import Category
-from .models import Cart, CartItem, Product
+from .models import Cart, CartItem, Product,ProductAttribute
 
 #  product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='images')
 #     image = models.ImageField(upload_to='product_images/')
@@ -10,56 +10,45 @@ from .models import Cart, CartItem, Product
 #     created_at = models.DateTimeField(auto_now_add=True,null=True,blank=True)
 #     updated_at = models.DateTimeField(auto_now=True,null=True,blank=True)
 
+class AttributeSerializer(serializers.Serializer):
+    attribute_name = serializers.CharField(max_length=255, required=False, allow_blank=True, allow_null=True)
+    attribute_value = serializers.CharField(max_length=255, required=False, allow_blank=True, allow_null=True)
+
 class ProductImageSerializer(serializers.ModelSerializer):
+    # image = serializers.ImageField(required=True)
     class Meta:
-        model=ProductImage
-        fields=['id','image','added_by','image_link','created_at']
-
-
-
-class ProductAttributeSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ProductAttribute
-        fields = ['id', 'attribute_name', 'attribute_value']
+        model = ProductImage
+        fields = ['image', 'added_by']
 
 class ProductSerializer(serializers.ModelSerializer):
-    attributes = ProductAttributeSerializer(many=True, required=False)
-    productimage=ProductImageSerializer(many=True,required=False)
+    attributes = AttributeSerializer(many=True, required=False, write_only=True)
+    productimage = ProductImageSerializer(many=True, required=False, write_only=True)
+
     class Meta:
         model = Product
-        fields = ['id', 'name', 'category', 'description', 'price', 'stock','is_featured_product', 'is_top_selling_product','is_new_arrivals','is_instock','rating','reviews','created_at', 'attributes','productimage']
+        fields = [
+            'name', 'category', 'description', 'price', 'stock',
+            'is_featured_product', 'is_top_selling_product', 'is_new_arrivals', 'is_instock',
+            'attributes', 'productimage'
+        ]
 
     def create(self, validated_data):
-        product = Product.objects.create(**validated_data)
-        return product
-    
-    def update(self, instance, validated_data):
-        # Remove and process attributes separately
+        # Pop out the nested data for attributes and product images
         attributes_data = validated_data.pop('attributes', [])
+        product_images_data = validated_data.pop('productimage', [])
 
-        # Update product fields
-        instance.name = validated_data.get('name', instance.name)
-        instance.category = validated_data.get('category', instance.category)
-        instance.description = validated_data.get('description', instance.description)
-        instance.price = validated_data.get('price', instance.price)
-        instance.stock = validated_data.get('stock', instance.stock)
-        instance.save()
+        # Create the Product instance
+        product = Product.objects.create(**validated_data)
 
-        # Update or create associated attributes
+        # Create each ProductAttribute instance
         for attribute_data in attributes_data:
-            attribute_id = attribute_data.get('id')
-            if attribute_id:
-                # If attribute exists, update it
-                attribute_instance = ProductAttribute.objects.get(id=attribute_id, product=instance)
-                attribute_instance.attribute_name = attribute_data.get('attribute_name', attribute_instance.attribute_name)
-                attribute_instance.attribute_value = attribute_data.get('attribute_value', attribute_instance.attribute_value)
-                attribute_instance.save()
-            else:
-                # If no attribute ID, create a new attribute
-                ProductAttribute.objects.create(product=instance, **attribute_data)
+            ProductAttribute.objects.create(product=product, **attribute_data)
 
-        return instance
-    
+        # Create each ProductImage instance
+        for image_data in product_images_data:
+            ProductImage.objects.create(product=product, **image_data)
+
+        return product
 
 
 
