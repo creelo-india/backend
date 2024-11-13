@@ -33,20 +33,22 @@ class ProductSerializer(serializers.ModelSerializer):
         ]
 
     def create(self, validated_data):
-        # Pop out the nested data for attributes and product images
+        # Extract attributes and product images from validated data
         attributes_data = validated_data.pop('attributes', [])
         product_images_data = validated_data.pop('productimage', [])
 
         # Create the Product instance
         product = Product.objects.create(**validated_data)
 
-        # Create each ProductAttribute instance
-        for attribute_data in attributes_data:
-            ProductAttribute.objects.create(product=product, **attribute_data)
+        # Create ProductAttribute instances
+        ProductAttribute.objects.bulk_create(
+            [ProductAttribute(product=product, **attr_data) for attr_data in attributes_data]
+        )
 
-        # Create each ProductImage instance
-        for image_data in product_images_data:
-            ProductImage.objects.create(product=product, **image_data)
+        # Create ProductImage instances
+        ProductImage.objects.bulk_create(
+            [ProductImage(product=product, **img_data) for img_data in product_images_data]
+        )
 
         return product
 

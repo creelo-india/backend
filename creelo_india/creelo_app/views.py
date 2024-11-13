@@ -25,95 +25,64 @@ from rest_framework.parsers import MultiPartParser, FormParser
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
-    parser_classes = (MultiPartParser, FormParser)  # Ensure the request is parsed correctly for file uploads
+    parser_classes = (MultiPartParser, FormParser)
 
     def create(self, request, *args, **kwargs):
-        # Debugging received data
-        print("Received data:", request.data)
-        print("Received files:", request.FILES)
-
         product_data = request.data.copy()
 
-        # Extract attribute names and values from request data
-        attribute_names = request.data.getlist('attributes[1][attribute_name]')
-        attribute_values = request.data.getlist('attributes[1][attribute_value]')
-
-        # Debugging: print the lists of attribute names and values
-        print(f"Attribute Names: {attribute_names}")
-        print(f"Attribute Values: {attribute_values}")
-
-        # Ensure both lists have the same length
-        if len(attribute_names) != len(attribute_values):
-            print(f"Mismatch: {len(attribute_names)} != {len(attribute_values)}")
-            return Response({
-                'error': 'Mismatched attribute names and values',
-                'attribute_names': attribute_names,
-                'attribute_values': attribute_values
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-        # Prepare the structured attributes data
+        # Dynamically gather all attribute data
         attributes_data = []
-        for i in range(len(attribute_names)):
-            attributes_data.append({
-                'attribute_name': attribute_names[i],
-                'attribute_value': attribute_values[i]
-            })
+        i = 0
+        while f'attributes[{i}][attribute_name]' in request.data:
+            attribute_name = request.data.get(f'attributes[{i}][attribute_name]')
+            attribute_value = request.data.get(f'attributes[{i}][attribute_value]')
+            if attribute_name and attribute_value:
+                attributes_data.append({
+                    'attribute_name': attribute_name,
+                    'attribute_value': attribute_value
+                })
+            i += 1
 
         # Process the product images
         product_images_data = []
-        for i in range(len(request.FILES.getlist('productimage[0][image]'))):
+        i = 0
+        while f'productimage[{i}][image]' in request.FILES:
             image_field = f'productimage[{i}][image]'
             added_by_field = f'productimage[{i}][added_by]'
 
             if image_field in request.FILES:
-                # Extract the 'added_by' field from the request data
                 added_by = request.data.get(added_by_field, None)
-
-                # Debugging: print the 'added_by' for each image
-                print(f"Image {i}: {image_field} with added_by: {added_by}")
-
-                # Append image data, ensuring added_by is handled correctly
                 product_images_data.append({
                     'image': request.FILES[image_field],
                     'added_by': added_by
                 })
+            i += 1
 
-        # Debugging: print the final attributes and images data
-        print("Processed attributes data:", attributes_data)
-        print("Processed product images data:", product_images_data)
-
-        # Set the structured data for the product serializer
-        product_data.setlist('attributes', attributes_data)
-        product_data.setlist('productimage', product_images_data)
-
-        # Pass the structured data to the serializer
-        serializer = self.get_serializer(data=product_data)
+        # Pass only the main product data to the serializer, without attributes and images
+        main_product_data = {key: product_data[key] for key in product_data if not key.startswith('attributes') and not key.startswith('productimage')}
+        serializer = self.get_serializer(data=main_product_data)
 
         if serializer.is_valid():
-            # Save the product instance first
+            # Save the main product instance
             product = serializer.save()
 
-            # Save each attribute
-            if attributes_data:
-                for attribute in attributes_data:
-                    ProductAttribute.objects.create(product=product, **attribute)
-
-            # Save each image, ensuring we avoid creating extra instances
-            if product_images_data:
-                for image_data in product_images_data:
-                    # Only save product image if there is an image field
-                    if image_data.get('image'):
-                        ProductImage.objects.create(product=product, **image_data)
+            # Manually save each attribute instance
+            for attribute in attributes_data:
+                ProductAttribute.objects.create(product=product, **attribute)
+            
+            # Manually save each product image instance
+            for image_data in product_images_data:
+                ProductImage.objects.create(product=product, **image_data)
 
             return Response({
                 'message': 'Product created successfully!',
                 'product': serializer.data
             }, status=status.HTTP_201_CREATED)
         else:
-            print("Serializer Errors:", serializer.errors)
             return Response({
                 'errors': serializer.errors
             }, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 
