@@ -36,7 +36,6 @@ class ProductSerializer(serializers.ModelSerializer):
         # Extract attributes and product images from validated data
         attributes_data = validated_data.pop('attributes', [])
         product_images_data = validated_data.pop('productimage', [])
-
         # Create the Product instance
         product = Product.objects.create(**validated_data)
 
@@ -52,6 +51,41 @@ class ProductSerializer(serializers.ModelSerializer):
 
         return product
 
+
+class GetProductAttributeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductAttribute
+        fields = ['attribute_name', 'attribute_value']
+
+
+class GetProductImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductImage
+        fields = ['image', 'image_link']
+
+
+class GetProductSerializer(serializers.ModelSerializer):
+    attributes = GetProductAttributeSerializer(many=True, read_only=True)  # Ensure the related_name matches
+    images = GetProductImageSerializer(many=True, read_only=True)  # Use `images`, not `productimage`
+
+    class Meta:
+        model = Product
+        fields = [
+            'name',
+            'category',
+            'description',
+            'price',
+            'stock',
+            'rating',
+            'reviews',
+            'is_featured_product',
+            'is_top_selling_product',
+            'is_new_arrivals',
+            'is_instock',
+            'created_at',
+            'attributes',  # Matches the `related_name` in `ProductAttribute`
+            'images',  # Matches the `related_name` in `ProductImage`
+        ]
 
 
 

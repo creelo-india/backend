@@ -3,7 +3,7 @@ from rest_framework import viewsets
 from rest_framework.response import Response
 from rest_framework import status
 from .models import Product,ProductAttribute,ProductImage
-from .serializers import ProductSerializer
+from .serializers import ProductSerializer,GetProductSerializer
 from rest_framework import status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -21,6 +21,7 @@ from .models import Product, ProductImage, ProductAttribute
 from rest_framework.parsers import MultiPartParser, FormParser
 
 from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.views import APIView
 
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
@@ -42,8 +43,6 @@ class ProductViewSet(viewsets.ModelViewSet):
                     'attribute_value': attribute_value
                 })
             i += 1
-
-        # Process the product images
         product_images_data = []
         i = 0
         while f'productimage[{i}][image]' in request.FILES:
@@ -137,4 +136,18 @@ def add_to_cart(request):
 def get_cart(request):
     cart = get_user_cart(request.user)
     serializer = CartSerializer(cart)
-    return Response(serializer.data)        
+    return Response(serializer.data)     
+
+
+from rest_framework.response import Response
+from rest_framework import status
+
+class GetProductList(APIView):
+    def get(self, request, *args, **kwargs):
+        try:
+            products = Product.objects.all()
+            serializer = GetProductSerializer(products, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
