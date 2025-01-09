@@ -65,9 +65,8 @@ class GetProductImageSerializer(serializers.ModelSerializer):
 
 
 class GetProductSerializer(serializers.ModelSerializer):
-    attributes = GetProductAttributeSerializer(many=True, read_only=True)  # Ensure the related_name matches
-    images = GetProductImageSerializer(many=True, read_only=True)  # Use `images`, not `productimage`
-
+    attributes = GetProductAttributeSerializer(many=True, read_only=True) 
+    images = GetProductImageSerializer(many=True, read_only=True)  
     class Meta:
         model = Product
         fields = [
