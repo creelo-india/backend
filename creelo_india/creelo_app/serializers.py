@@ -3,13 +3,6 @@ from .models import Product,ProductAttribute,ProductImage
 from master_config.models import Category
 from .models import Cart, CartItem, Product,ProductAttribute
 
-#  product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='images')
-#     image = models.ImageField(upload_to='product_images/')
-#     added_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='added_images')
-#     updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='updated_images')
-#     created_at = models.DateTimeField(auto_now_add=True,null=True,blank=True)
-#     updated_at = models.DateTimeField(auto_now=True,null=True,blank=True)
-
 class AttributeSerializer(serializers.Serializer):
     attribute_name = serializers.CharField(max_length=255, required=False, allow_blank=True, allow_null=True)
     attribute_value = serializers.CharField(max_length=255, required=False, allow_blank=True, allow_null=True)
@@ -22,34 +15,34 @@ class ProductImageSerializer(serializers.ModelSerializer):
 
 class ProductSerializer(serializers.ModelSerializer):
     attributes = AttributeSerializer(many=True, required=False, write_only=True)
-    productimage = ProductImageSerializer(many=True, required=False, write_only=True)
+    product_images = ProductImageSerializer(many=True, required=False, write_only=True)
 
     class Meta:
         model = Product
         fields = [
-            'name', 'category', 'description', 'price', 'stock',
+            'name', 'category', 'description', 'price', 'stock', 'rating', 'reviews',
             'is_featured_product', 'is_top_selling_product', 'is_new_arrivals', 'is_instock',
-            'attributes', 'productimage'
+            'created_at', 'attributes', 'product_images'
         ]
 
     def create(self, validated_data):
-        # Extract attributes and product images from validated data
+        # Extract attributes and images from the validated data
         attributes_data = validated_data.pop('attributes', [])
-        product_images_data = validated_data.pop('productimage', [])
-        # Create the Product instance
+        product_images_data = validated_data.pop('product_images', [])
+
+        # Create the main product instance
         product = Product.objects.create(**validated_data)
 
-        # Create ProductAttribute instances
-        ProductAttribute.objects.bulk_create(
-            [ProductAttribute(product=product, **attr_data) for attr_data in attributes_data]
-        )
+        # Create associated ProductAttribute instances
+        for attribute_data in attributes_data:
+            ProductAttribute.objects.create(product=product, **attribute_data)
 
-        # Create ProductImage instances
-        ProductImage.objects.bulk_create(
-            [ProductImage(product=product, **img_data) for img_data in product_images_data]
-        )
+        # Create associated ProductImage instances
+        for image_data in product_images_data:
+            ProductImage.objects.create(product=product, **image_data)
 
         return product
+
 
 
 class GetProductAttributeSerializer(serializers.ModelSerializer):

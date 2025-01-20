@@ -10,6 +10,6 @@ router.register(r'products', ProductViewSet)
 urlpatterns = [
     path('', include(router.urls)),
     path('cart/', get_cart, name='get-cart'),
-    path('add-to-cart', add_to_cart, name='add-to-cart'),
-     path('get-product', views.GetProductList.as_view(), name='get-product'),
+    path('add-to-cart/', add_to_cart, name='add-to-cart'),
+    path('get-product/', views.GetProductList.as_view(), name='get-product'),
 ]

@@ -9,17 +9,11 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from .models import Cart, CartItem, Product
 from .serializers import CartSerializer, CartItemSerializer
-
-from rest_framework.parsers import MultiPartParser, FormParser
-
+from rest_framework.response import Response
+from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.decorators import action
-from rest_framework.parsers import MultiPartParser, FormParser
-from .models import Product, ProductImage, ProductAttribute
-
-from rest_framework.parsers import MultiPartParser, FormParser
-
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.views import APIView
 
@@ -29,63 +23,41 @@ class ProductViewSet(viewsets.ModelViewSet):
     parser_classes = (MultiPartParser, FormParser)
 
     def create(self, request, *args, **kwargs):
-        product_data = request.data.copy()
-
-        # Dynamically gather all attribute data
+        # Preprocess attributes
         attributes_data = []
         i = 0
         while f'attributes[{i}][attribute_name]' in request.data:
-            attribute_name = request.data.get(f'attributes[{i}][attribute_name]')
-            attribute_value = request.data.get(f'attributes[{i}][attribute_value]')
-            if attribute_name and attribute_value:
-                attributes_data.append({
-                    'attribute_name': attribute_name,
-                    'attribute_value': attribute_value
-                })
+            attributes_data.append({
+                'attribute_name': request.data.get(f'attributes[{i}][attribute_name]'),
+                'attribute_value': request.data.get(f'attributes[{i}][attribute_value]')
+            })
             i += 1
+
+        # Preprocess product images
         product_images_data = []
         i = 0
-        while f'productimage[{i}][image]' in request.FILES:
-            image_field = f'productimage[{i}][image]'
-            added_by_field = f'productimage[{i}][added_by]'
-
-            if image_field in request.FILES:
-                added_by = request.data.get(added_by_field, None)
-                product_images_data.append({
-                    'image': request.FILES[image_field],
-                    'added_by': added_by
-                })
+        while f'product_images[{i}][image]' in request.FILES:
+            product_images_data.append({
+                'image': request.FILES[f'product_images[{i}][image]'],
+                'added_by': request.data.get(f'product_images[{i}][added_by]')
+            })
             i += 1
 
-        # Pass only the main product data to the serializer, without attributes and images
-        main_product_data = {key: product_data[key] for key in product_data if not key.startswith('attributes') and not key.startswith('productimage')}
-        serializer = self.get_serializer(data=main_product_data)
+        # Prepare main product data
+        product_data = {key: request.data[key] for key in request.data if not key.startswith('attributes') and not key.startswith('product_images')}
 
+        # Add attributes and images to the main data
+        product_data['attributes'] = attributes_data
+        product_data['product_images'] = product_images_data
+
+        # Use the serializer to validate and save the data
+        serializer = self.get_serializer(data=product_data)
         if serializer.is_valid():
-            # Save the main product instance
-            product = serializer.save()
-
-            # Manually save each attribute instance
-            for attribute in attributes_data:
-                ProductAttribute.objects.create(product=product, **attribute)
-            
-            # Manually save each product image instance
-            for image_data in product_images_data:
-                ProductImage.objects.create(product=product, **image_data)
-
-            return Response({
-                'message': 'Product created successfully!',
-                'product': serializer.data
-            }, status=status.HTTP_201_CREATED)
+            serializer.save()
+            return Response({'message': 'Product created successfully!', 'data': serializer.data}, status=status.HTTP_201_CREATED)
         else:
-            return Response({
-                'errors': serializer.errors
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-
-
-
-        
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
@@ -111,26 +83,59 @@ def get_user_cart(user):
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def add_to_cart(request):
+    """
+    Handles adding, increasing, reducing, or deleting items in the cart.
+    """
     try:
         product_id = request.data.get('product_id')
+        action = request.data.get('action')  # "add", "increase", "reduce", "delete"
         quantity = request.data.get('quantity', 1)
-        # Validate that product exists
+
+        # Validate inputs
+        if not product_id or not action:
+            return Response({"error": "Product ID and action are required."}, status=status.HTTP_400_BAD_REQUEST)
+
         product = Product.objects.get(id=product_id)
-        # Get the user's cart
         cart = get_user_cart(request.user)
-        # Check if the product is already in the cart
+
+        # Fetch or create the cart item
         cart_item, created = CartItem.objects.get_or_create(cart=cart, product=product)
-        if not created:  # If the item already exists in the cart, update the quantity
+
+        if action == "add":
+            if created:  # New item in the cart
+                cart_item.quantity = quantity
+            else:  # Update quantity of an existing item
+                cart_item.quantity += quantity
+            cart_item.save()
+            return Response({"message": "Product added to cart."}, status=status.HTTP_201_CREATED)
+
+        elif action == "increase":
             cart_item.quantity += quantity
             cart_item.save()
+            return Response({"message": "Product quantity increased."}, status=status.HTTP_200_OK)
+
+        elif action == "reduce":
+            if cart_item.quantity > quantity:
+                cart_item.quantity -= quantity
+                cart_item.save()
+                return Response({"message": "Product quantity reduced."}, status=status.HTTP_200_OK)
+            else:  # If quantity becomes 0 or less, remove the item
+                cart_item.delete()
+                return Response({"message": "Product removed from cart."}, status=status.HTTP_200_OK)
+
+        elif action == "delete":
+            cart_item.delete()
+            return Response({"message": "Product removed from cart."}, status=status.HTTP_200_OK)
+
         else:
-            cart_item.quantity = quantity
-            cart_item.save()
-        return Response({"message": "Product added to cart."}, status=status.HTTP_201_CREATED)
+            return Response({"error": "Invalid action."}, status=status.HTTP_400_BAD_REQUEST)
+
     except Product.DoesNotExist:
         return Response({"error": "Product not found."}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-# View to retrieve the user's cart
+
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
 def get_cart(request):
@@ -139,8 +144,7 @@ def get_cart(request):
     return Response(serializer.data)     
 
 
-from rest_framework.response import Response
-from rest_framework import status
+
 
 class GetProductList(APIView):
     def get(self, request, *args, **kwargs):

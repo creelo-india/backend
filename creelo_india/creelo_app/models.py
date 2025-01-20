@@ -7,7 +7,7 @@ from django.utils import timezone
 class Product(models.Model):
     """Model representing a product associated with categories."""
     name = models.CharField(max_length=255)
-    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
+    category = models.ForeignKey(Category, on_delete=models.CASCADE,null=True,blank=True, related_name='products')
     description = models.TextField(blank=True, null=True)
     price = models.DecimalField(max_digits=10, decimal_places=2,default=0.0)
     stock = models.PositiveIntegerField(default=0)
